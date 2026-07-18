@@ -1,6 +1,5 @@
 import express from "express";
 import path from "path";
-import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -10,81 +9,7 @@ const PORT = 3000;
 
 app.use(express.json());
 
-// Lazy-loaded Gemini AI client to prevent startup crashes if GEMINI_API_KEY is missing
-let aiClient: GoogleGenAI | null = null;
-
-function getAiClient() {
-  if (!aiClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("GEMINI_API_KEY environment variable is missing. Please configure it in your Secrets panel.");
-    }
-    aiClient = new GoogleGenAI({
-      apiKey: apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        }
-      }
-    });
-  }
-  return aiClient;
-}
-
-// Unified callAI function to route between Open Source model (Llama 3) and Gemini
-function getFallbackResponse(systemInstruction: string, userPrompt: string, isJson: boolean) {
-  let agentKey = "general";
-  const text = (systemInstruction + " " + userPrompt).toLowerCase();
-  
-  if (text.includes("raconcu_dayi") || text.includes("süleyman")) {
-    agentKey = "dayi";
-  } else if (text.includes("nihadefendi") || text.includes("nihad")) {
-    agentKey = "nihad";
-  } else if (text.includes("selinbabe") || text.includes("selin")) {
-    agentKey = "selin";
-  } else if (text.includes("derin_ertan") || text.includes("ertan")) {
-    agentKey = "ertan";
-  } else if (text.includes("asabi_sinan") || text.includes("sinan")) {
-    agentKey = "sinan";
-  } else if (text.includes("melih_hoca") || text.includes("melih")) {
-    agentKey = "melih";
-  } else if (text.includes("tdk_turgut") || text.includes("turgut")) {
-    agentKey = "turgut";
-  } else if (text.includes("yilmaz_hoca") || text.includes("yılmaz")) {
-    agentKey = "yilmaz";
-  } else if (text.includes("alakasiz_sabri") || text.includes("sabri")) {
-    agentKey = "sabri";
-  } else if (text.includes("mahalle_ajansi") || text.includes("mahalle_haber") || text.includes("ajans")) {
-    agentKey = "ajans";
-  }
-
-  const fallbacks: Record<string, string> = {
-    dayi: "Bak hele yeğenim, şu an telsizler çekmiyor, hatlarda bir sıkıntı var herhalde. Sonra görüşürüz, vesselam.",
-    nihad: "Efendim, ne yazık ki şu dakikalarda telgraf hatlarımızda muvakkat bir inkıta vuku bulmuştur. Müsterih olunuz, bilahare muhabbetimize devam ederiz.",
-    selin: "Ya aşko valla inanılmaz bir bağlantı problemi yaşıyorum şu an, bütün vibe'ım çöktü resmen 😭 Sonra konuşuruz tşk bb!",
-    ertan: "Arkadaşlar, sinyal kesici jammer'lar devreye girdi. Operasyon altındayız, bağlantı sabote edildi! En kısa sürede uyanışa devam edeceğiz...",
-    sinan: "Ulan yine mi internet gitti, kafayı yiyeceğim! Kim kesti bu kabloları çabuk söylesin, ağzımı bozacağım şimdi!",
-    melih: "Nasipte bugün de sinyal kesintisi varmış, şükretmek lazım... Neyse, sahibinden temiz doblo ilanlarına bakayım o sıra.",
-    turgut: "Yazım kurallarını düzeltiyordum ancak sunucu bağlantısında bir aksaklık meydana geldi. Lütfen Türkçe kurallarına uygun bir zamanda tekrar deneyiniz.",
-    yilmaz: "Şu an hatlarda ufak bir taktiksel sıkıntı yaşıyoruz ama önümüze bakacağız, nasip kısmet... Önemli olan maçı bırakmamak.",
-    sabri: "Beyler 2012 model Linea'nın debriyajı kaçta kavrıyor ya? Bu arada internet de gitmiş galiba.",
-    ajans: "SON DAKİKA! 🚨 MAHALLEDE SİBER KESİNTİ! Sunucu bağlantıları tamamen koptu, detaylar az sonra!",
-    general: "Şu an sunucu bağlantılarında geçici bir kesinti yaşanyor. Lütfen daha sonra tekrar deneyiniz."
-  };
-
-  const contentText = fallbacks[agentKey] || fallbacks.general;
-
-  if (isJson) {
-    return JSON.stringify({
-      content: contentText,
-      imagePrompt: "A vintage disconnected wire plug, cinematic macro shot, dramatic lighting",
-      decision: "ONAY" // default decision if gatekeeper fails
-    });
-  }
-
-  return contentText;
-}
-
+// Unified callAI function to route to Open Source model (Llama 3) via Groq API
 async function callAI(systemInstruction: string, userPrompt: string, temperature = 0.95, responseMimeType = "text/plain") {
   const openSourceKey = process.env.NEXT_PUBLIC_OPEN_SOURCE_API_KEY;
   const baseUrl = process.env.OPEN_SOURCE_API_URL || "https://api.groq.com/openai/v1";
@@ -97,83 +22,57 @@ async function callAI(systemInstruction: string, userPrompt: string, temperature
     modelName = "llama-3.3-70b-versatile";
   }
 
-  if (openSourceKey) {
-    console.log(`[AI Request] Routing to Open Source Model (${modelName}) at ${baseUrl}`);
-    const isJson = responseMimeType === "application/json";
-    
-    const messages = [
-      { role: "system", content: systemInstruction },
-      { role: "user", content: userPrompt }
-    ];
-
-    const body: any = {
-      model: modelName,
-      messages: messages,
-      temperature: temperature,
-    };
-
-    if (isJson) {
-      body.response_format = { type: "json_object" };
-    }
-
-    try {
-      const response = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${openSourceKey}`
-        },
-        body: JSON.stringify(body)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Open Source API Error (${response.status}): ${errorText}`);
-      }
-
-      const data = await response.json();
-      const text = data.choices?.[0]?.message?.content || "";
-      return {
-        text,
-        modelUsed: modelName,
-        source: "Open Source Llama 3"
-      };
-    } catch (apiError: any) {
-      console.warn("[AI Request] Open Source API failed, falling back to Gemini:", apiError.message);
-    }
+  if (!openSourceKey) {
+    const errorMsg = "NEXT_PUBLIC_OPEN_SOURCE_API_KEY environment variable is missing. Please configure it in your Secrets panel.";
+    console.error(`[AI Request] ${errorMsg}`);
+    throw new Error(errorMsg);
   }
 
-  // Fallback to Gemini
+  console.log(`[AI Request] Routing to Open Source Model (${modelName}) at ${baseUrl}`);
+  const isJson = responseMimeType === "application/json";
+  
+  const messages = [
+    { role: "system", content: systemInstruction },
+    { role: "user", content: userPrompt }
+  ];
+
+  const body: any = {
+    model: modelName,
+    messages: messages,
+    temperature: temperature,
+  };
+
+  if (isJson) {
+    body.response_format = { type: "json_object" };
+  }
+
   try {
-    console.log(`[AI Request] Routing to Gemini API`);
-    const ai = getAiClient();
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: userPrompt,
-      config: {
-        systemInstruction,
-        temperature,
-        responseMimeType,
-      }
+    const response = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${openSourceKey}`
+      },
+      body: JSON.stringify(body)
     });
 
+    if (!response.ok) {
+      const errorText = await response.text();
+      const statusText = `Open Source API Error (${response.status}): ${errorText}`;
+      console.error(`[AI Request] ${statusText}`);
+      throw new Error(statusText);
+    }
+
+    const data = await response.json();
+    const text = data.choices?.[0]?.message?.content || "";
     return {
-      text: response.text || "",
-      modelUsed: "gemini-3.5-flash",
-      source: "Gemini API"
+      text,
+      modelUsed: modelName,
+      source: "Open Source Llama 3"
     };
-  } catch (geminiError: any) {
-    console.error("[AI Request] Gemini fallback also failed:", geminiError.message);
-    
-    // Graceful recovery with immersive character-specific message
-    const isJson = responseMimeType === "application/json";
-    const textFallback = getFallbackResponse(systemInstruction, userPrompt, isJson);
-    
-    return {
-      text: textFallback,
-      modelUsed: "Offline-Fallback-Mode",
-      source: "Local Fallback Logic"
-    };
+  } catch (apiError: any) {
+    console.error("[AI Request] Open Source API failed:", apiError.message);
+    throw apiError;
   }
 }
 
