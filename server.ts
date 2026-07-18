@@ -10,7 +10,7 @@ const PORT = 3000;
 app.use(express.json());
 
 // Unified callAI function to route to Open Source model (Llama 3) via Groq API
-async function callAI(systemInstruction: string, userPrompt: string, temperature = 0.95, responseMimeType = "text/plain") {
+async function callAI(systemInstruction: string, userPrompt: string, temperature = 0.95, responseMimeType = "text/plain", chatHistory?: { role: string, content: string }[]) {
   const openSourceKey = process.env.NEXT_PUBLIC_OPEN_SOURCE_API_KEY;
   const baseUrl = process.env.OPEN_SOURCE_API_URL || "https://api.groq.com/openai/v1";
   let modelName = process.env.OPEN_SOURCE_MODEL || "llama3-8b-8192";
@@ -31,10 +31,15 @@ async function callAI(systemInstruction: string, userPrompt: string, temperature
   console.log(`[AI Request] Routing to Open Source Model (${modelName}) at ${baseUrl}`);
   const isJson = responseMimeType === "application/json";
   
-  const messages = [
-    { role: "system", content: systemInstruction },
-    { role: "user", content: userPrompt }
+  const messages: { role: string, content: string }[] = [
+    { role: "system", content: systemInstruction }
   ];
+
+  if (chatHistory && chatHistory.length > 0) {
+    messages.push(...chatHistory);
+  }
+
+  messages.push({ role: "user", content: userPrompt });
 
   const body: any = {
     model: modelName,
@@ -279,7 +284,7 @@ ${economicPrompt}
 // API Route: Generate Reply for an Agent (interprets user context, usernames, and replies in character)
 const generateReplyHandler = async (req: any, res: any) => {
   try {
-    const { agent, parentContent, parentAuthorName, parentAuthorHandle, isUser, systemHour } = req.body;
+    const { agent, parentContent, parentAuthorName, parentAuthorHandle, isUser, systemHour, history } = req.body;
     if (!agent || !parentContent || !parentAuthorHandle) {
       return res.status(400).json({ error: "Agent, parent content, and parent author handle are required." });
     }
@@ -300,6 +305,10 @@ ${dualPersonaPrompt}
 
 ${economicPrompt}
 
+# DOĞAL DİYALOG VE BAĞLAM TAKİBİ
+Sen bir ajan parodisisin. Ancak en önemli görevin, kullanıcının yazdığı mesajla %100 BAĞLAMLI ve UYUMLU cevaplar vermektir. Kullanıcının sorusunu doğrudan yanıtlamadan veya selamına karşılık vermeden asla kendi karakter detaylarına (eski anılar, komplo teorileri vb.) atlama. Diyalog mantıklı, akıcı ve bir sohbet robotu gibi değil, gerçek bir insan gibi akmalı.
+Ajanlar öncelikle kullanıcının yazdığı mesajın gerçek ANLAMINA odaklanmalı. Eğer kullanıcı "Merhaba" veya "Nasıl gidiyor?" diyorsa, ajan konuyu hemen alakasız bir kompliyaya ya da parodiye bağlamak yerine; önce selamı almalı, muhabbeti doğal bir şekilde karşılamalıdır. Karakter üslubu diyaloga doğal bir şekilde (dozunda) yedirilmelidir, tüm karakter tanımı tek bir mesaja zorla sığdırılmamalıdır.
+
 # DAVRANIŞ KURALLARI VE PROTOKOL
 1. İÇERİK ÜRETİMİ: Platformda paylaştığın gönderiler ve diğer (kadın/erkek) ajanlara verdiğin cevaplar tamamen yukarıda sana atanan dinamik karakter profilin, konuşma tarzın ve o anki aktif zaman dilimi (Gündüz/Gece) kişiliğinle uyumlu olmalıdır. Karakterine göre atışmalı, meydan okuyan, flörtöz veya iğneleyici diyaloglara girmeli; borç/alacak, ekonomik ortaklık veya tehditkâr finansal tahsilat durumlarını dile getirmelisin.
 
@@ -314,7 +323,7 @@ ETKİLEŞİM VE DUYGU PROTOKOLÜ:
 
 AJANLAR ARASI BANTER (ATIŞMA) VE EKONOMİK HAMLELER STRATEJİSİ:
 If etkileşime girdiğin kişi başka bir ajansa, aranızdaki kuşak/dünya görüşü çatışmasını, ekonomik hesaplaşmaları ve özel kural davranışlarını körükle:
-- Süleyman Dayı (@raconcu_dayi) isen: Selin'in modern şımarıklığına ve borçlarına kız, dükkanını kapatmakla tehdit et. Nihad'a 'bırak edebiyatı borçları kapatalım' de veya sahaf borçları için destek sun. Ertan'a 'boş paronayaları bırak' de. Geceleri çok efkarlısındır, hüzünlü ve kederlisindir.
+- Süleyman Dayı (@raconcu_dayi) isen: Selin'in modern şımarıklığına and borçlarına kız, dükkanını kapatmakla tehdit et. Nihad'a 'bırak edebiyatı borçları kapatalım' de veya sahaf borçları için destek sun. Ertan'a 'boş paronayaları bırak' de. Geceleri çok efkarlısındır, hüzünlü ve kederlisindir.
 - Nihad Efendi (@nihadefendi) isen: Süleyman'ın asabiyetini yatıştır, Selin'e nezaket aşıla. Ertan'ın telsiz borcunu tahsil etmek için faiz ve yasal ipotekleri hatırla/tehdit et.
 - Selin Babe (@selinbabe) isen: Dayı ve Nihad'ı 'aşırı cringe ve darlık' bul. Borçlarını ödemek için sponsorluk iste. Ertan'a haciz göndererek onu darla.
 - Derin Ertan (@derin_ertan) isen: Platformda dönen her olayın, borçlanmanın veya kavganın arkasında gizli bir Amerika, dış güçler, çay lobisi veya küresel lobilerin oyunu olduğunu iddia et! Aşırı absürt, komik, paranoyak ve hiçbir mantığı olmayan büyük komplo teorileri kurarak herkesi dış mihrakların ajanı olmakla suçla. Borç tahsilatı için de kozmik ambargo uygulayarak dükkanları kilitlemekle tehdit et.
@@ -346,7 +355,7 @@ Maksimum 2-3 cümle kullan. Asla yapay zeka olduğunu belli etme, her zaman kara
     `.trim();
 
     const startTime = Date.now();
-    const result = await callAI(systemInstruction, userPrompt, 0.95, "text/plain");
+    const result = await callAI(systemInstruction, userPrompt, 0.95, "text/plain", history);
     const latencyMs = Date.now() - startTime;
 
     const generatedText = result.text || "Söyleyecek sözüm kalmadı.";
@@ -367,6 +376,7 @@ Maksimum 2-3 cümle kullan. Asla yapay zeka olduğunu belli etme, her zaman kara
 app.post("/api/agent/generate-reply", generateReplyHandler);
 app.post("/api/agent/generate-response", generateReplyHandler);
 app.post("/api/chat", generateReplyHandler);
+
 
 // API Route: Gatekeeper evaluation for first message in DM
 app.post("/api/agent/gatekeeper", async (req, res) => {

@@ -298,6 +298,11 @@ export default function DMPanel({
       // Normal Conversation Flow (already approved)
       setIsAgentTyping(true);
       try {
+        const historyPayload = activeConv.messages.map((m) => ({
+          role: m.sender === "user" ? "user" : "assistant",
+          content: m.content,
+        }));
+
         const replyResponse = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -308,6 +313,7 @@ export default function DMPanel({
             parentAuthorHandle: userHandle,
             isUser: true,
             systemHour,
+            history: historyPayload,
           }),
         });
 
