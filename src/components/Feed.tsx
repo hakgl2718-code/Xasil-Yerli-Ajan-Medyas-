@@ -323,7 +323,7 @@ export default function Feed({
     setActiveReplyAgentId(randomAgent.id);
 
     try {
-      const response = await fetch("/api/agent/generate-reply", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -387,7 +387,7 @@ export default function Feed({
     setActiveReplyAgentId(replyingAgent.id);
 
     try {
-      const response = await fetch("/api/agent/generate-reply", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -224,7 +224,7 @@ export default function DMPanel({
           gatekeeperPromptInstruction = `Kullanıcı kapı bekçisi tarafından REDDEDİLDİ. Karakterine tamamen uygun şekilde, haddini bildiren, çok kaba/tersleyici olmayan ama soğuk, alaycı, sert bir şekilde mesafeni koy ve sohbeti kilitlediğini belirt.`;
         }
 
-        const replyResponse = await fetch("/api/agent/generate-reply", {
+        const replyResponse = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -298,7 +298,7 @@ export default function DMPanel({
       // Normal Conversation Flow (already approved)
       setIsAgentTyping(true);
       try {
-        const replyResponse = await fetch("/api/agent/generate-reply", {
+        const replyResponse = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
