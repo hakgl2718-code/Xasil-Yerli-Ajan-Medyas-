@@ -207,10 +207,35 @@ export default function Feed({
     setPosts((prev) => [newPost, ...prev]);
     setNewPostContent("");
 
-    // Trigger a random agent to comment on user's new post after a short delay
-    setTimeout(() => {
-      triggerAgentCommentOnPost(newPost.id, newPost.content, userDisplayName, userHandle);
-    }, 1500);
+    // Check if any agent is mentioned in the new post
+    const lowerText = newPost.content.toLowerCase();
+    let targetAgentId: string | null = null;
+
+    const agentSearchMap: Record<string, string[]> = {
+      raconcu_dayi: ["@raconcu_dayi", "raconcu_dayi", "süleyman", "suleyman", "dayı", "dayi", "çelik", "celik"],
+      nihadefendi: ["@nihadefendi", "nihadefendi", "nihad", "nihat", "efendi"],
+      selinbabe: ["@selinbabe", "selinbabe", "selin", "babe", "kaya"],
+      derin_ertan: ["@derin_ertan", "derin_ertan", "ertan", "derin", "saygın", "saygin"],
+      yilmaz_hoca: ["@yilmaz_hoca", "yilmaz_hoca", "yılmaz", "yilmaz", "hoca", "teknik direktör"],
+      mahalle_ajansi: ["@mahalle_ajansi", "mahalle_ajansi", "mahalle haber ajansı", "ajans", "haber"],
+      alakasiz_sabri: ["@alakasiz_sabri", "alakasiz_sabri", "sabri", "alakasız", "alakasiz"],
+      asabi_sinan: ["@asabi_sinan", "asabi_sinan", "sinan", "asabi", "müfettiş", "mufettis"]
+    };
+
+    for (const [agentId, terms] of Object.entries(agentSearchMap)) {
+      if (terms.some(term => lowerText.includes(term))) {
+        targetAgentId = agentId;
+        break;
+      }
+    }
+
+    if (targetAgentId) {
+      setTimeout(() => {
+        triggerAgentCommentReply(newPost.id, newPost.content, userDisplayName, userHandle, targetAgentId!, true);
+      }, 1500);
+    } else {
+      console.log("No agent mentioned in user post. No auto-comment triggered.");
+    }
   };
 
   // Trigger Agent to write a brand new Post
@@ -295,18 +320,43 @@ export default function Feed({
     );
     setCommentInputs((prev) => ({ ...prev, [postId]: "" }));
 
-    // Auto-reply logic: Trigger the original post's agent to reply to the user's comment
+    // Check if any agent is mentioned in the comment text
+    const lowerText = text.toLowerCase();
+    let targetAgentId: string | null = null;
+
+    const agentSearchMap: Record<string, string[]> = {
+      raconcu_dayi: ["@raconcu_dayi", "raconcu_dayi", "süleyman", "suleyman", "dayı", "dayi", "çelik", "celik"],
+      nihadefendi: ["@nihadefendi", "nihadefendi", "nihad", "nihat", "efendi"],
+      selinbabe: ["@selinbabe", "selinbabe", "selin", "babe", "kaya"],
+      derin_ertan: ["@derin_ertan", "derin_ertan", "ertan", "derin", "saygın", "saygin"],
+      yilmaz_hoca: ["@yilmaz_hoca", "yilmaz_hoca", "yılmaz", "yilmaz", "hoca", "teknik direktör"],
+      mahalle_ajansi: ["@mahalle_ajansi", "mahalle_ajansi", "mahalle haber ajansı", "ajans", "haber"],
+      alakasiz_sabri: ["@alakasiz_sabri", "alakasiz_sabri", "sabri", "alakasız", "alakasiz"],
+      asabi_sinan: ["@asabi_sinan", "asabi_sinan", "sinan", "asabi", "müfettiş", "mufettis"]
+    };
+
+    for (const [agentId, terms] of Object.entries(agentSearchMap)) {
+      if (terms.some(term => lowerText.includes(term))) {
+        targetAgentId = agentId;
+        break;
+      }
+    }
+
     const post = posts.find((p) => p.id === postId);
-    if (post && post.agentId) {
+
+    if (targetAgentId) {
+      // Specific agent was mentioned/tagged, let them respond
+      setTimeout(() => {
+        triggerAgentCommentReply(postId, text, userDisplayName, userHandle, targetAgentId!, true);
+      }, 1000);
+    } else if (post && post.agentId) {
+      // No specific agent mentioned, but it's an agent's post, so the author agent responds
       setTimeout(() => {
         triggerAgentCommentReply(postId, text, userDisplayName, userHandle, post.agentId!, true);
       }, 1000);
     } else {
-      // If it is a user's post, choose a random agent to jump in
-      const randomAgent = agents[Math.floor(Math.random() * agents.length)];
-      setTimeout(() => {
-        triggerAgentCommentReply(postId, text, userDisplayName, userHandle, randomAgent.id, true);
-      }, 1000);
+      // It's a user post and no agent was mentioned, so no agent should reply (prevents hijacking)
+      console.log("No agent mentioned in user comment on user post. No auto-comment triggered.");
     }
   };
 

@@ -36,8 +36,8 @@ export default function App() {
 
   
   // Customizable User Details
-  const [userDisplayName, setUserDisplayName] = useState("Ahmet Yılmaz");
-  const [userHandle, setUserHandle] = useState("@ahmet_yilmaz");
+  const [userDisplayName, setUserDisplayName] = useState("HAKAN GÜL");
+  const [userHandle, setUserHandle] = useState("@hakan_gul");
   const [isEditingUser, setIsEditingUser] = useState(false);
   const [tempName, setTempName] = useState(userDisplayName);
   const [tempHandle, setTempHandle] = useState(userHandle);
