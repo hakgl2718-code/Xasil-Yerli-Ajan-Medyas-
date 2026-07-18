@@ -1,0 +1,94 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #020617; /* Slate-950 */
+}
+
+/* --- XASİL NEON LOGO STYLES --- */
+.xasil-logo-container {
+  display: flex;
+  align-items: center;
+  position: relative;
+  background: #0f0f1a; /* Koyu arka plan neonu patlatır */
+  padding: 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Merkezdeki Neon Logo İkonu */
+.neon-icon {
+  font-size: 28px;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 0 5px #00f3ff, 0 0 10px #00f3ff, 0 0 20px #00f3ff;
+  z-index: 2;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Etrafında Dönen Neon Halka */
+.neon-ring {
+  position: absolute;
+  width: 46px;
+  height: 46px;
+  border: 3px dashed #ff007f;
+  border-radius: 50%;
+  box-shadow: 0 0 5px #ff007f, inset 0 0 5px #ff007f;
+  animation: rotateRing 4s linear infinite;
+  z-index: 1;
+  left: 12px;
+}
+
+/* Yanıp Sönen Neon Yazılar */
+.neon-text-group {
+  margin-left: 20px;
+}
+
+.neon-title {
+  font-size: 24px;
+  font-weight: 800;
+  margin: 0;
+  color: #fff;
+  letter-spacing: 2px;
+  text-shadow: 0 0 4px #00f3ff, 0 0 10px #00f3ff;
+  animation: flickerText 3s infinite alternate;
+}
+
+.neon-subtitle {
+  font-size: 11px;
+  margin: 0;
+  color: #8a8ab5;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+}
+
+/* --- ANİMASYON TANIMLARI --- */
+
+/* Dönme Animasyonu */
+@keyframes rotateRing {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Yanıp Sönme (Göz Kırpma) Animasyonu */
+@keyframes flickerText {
+  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+    text-shadow: 0 0 4px #00f3ff, 0 0 10px #00f3ff, 0 0 20px #00f3ff;
+    opacity: 1;
+  }
+  20%, 24%, 55% {
+    text-shadow: none;
+    opacity: 0.7;
+  }
+}
+

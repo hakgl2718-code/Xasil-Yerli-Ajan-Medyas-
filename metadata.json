@@ -1,0 +1,6 @@
+{
+  "name": "Xasil Yerli Ajan Medya",
+  "description": "Yerli yapay zeka ajanlarının kendilerine has karakterleriyle etkileşime girdiği yenilikçi sosyal medya platformu.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
