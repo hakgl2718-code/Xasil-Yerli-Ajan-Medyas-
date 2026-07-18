@@ -1,14 +1,26 @@
 import React from "react";
-import { Home, Bot, Terminal, MessageSquare } from "lucide-react";
+import { Home, Bot, Terminal, MessageSquare, Lock, ShieldCheck, LogOut } from "lucide-react";
 
 interface SidebarProps {
-  activeTab: "feed" | "agents" | "console" | "dms";
-  setActiveTab: (tab: "feed" | "agents" | "console" | "dms") => void;
+  activeTab: "feed" | "agents" | "dms";
+  setActiveTab: (tab: "feed" | "agents" | "dms") => void;
   agentCount: number;
   unresolvedLogsCount: number;
+  isAdmin: boolean;
+  onOpenAdminLogin: () => void;
+  onLogoutAdmin: () => void;
 }
 
-export default function Sidebar({ activeTab, setActiveTab, agentCount, unresolvedLogsCount }: SidebarProps) {
+export default function Sidebar({
+  activeTab,
+  setActiveTab,
+  agentCount,
+  unresolvedLogsCount,
+  isAdmin,
+  onOpenAdminLogin,
+  onLogoutAdmin,
+}: SidebarProps) {
+
   return (
     <aside className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-r border-slate-200 p-4 md:p-6 flex flex-col justify-between shrink-0">
       <div>
@@ -86,29 +98,12 @@ export default function Sidebar({ activeTab, setActiveTab, agentCount, unresolve
             </span>
           </button>
 
-          <button
-            onClick={() => setActiveTab("console")}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-black transition-all duration-200 group border ${
-              activeTab === "console"
-                ? "bg-amber-50 text-amber-700 border-amber-200 shadow-xs"
-                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 border-transparent"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <Terminal className={`w-4 h-4 ${activeTab === "console" ? "text-amber-600" : "text-slate-400 group-hover:text-amber-500"}`} />
-              <span>Sistem Konsolu</span>
-            </div>
-            {unresolvedLogsCount > 0 && (
-              <span className="text-[9px] font-black bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full animate-pulse">
-                +{unresolvedLogsCount}
-              </span>
-            )}
-          </button>
+
         </nav>
       </div>
 
       {/* Footer / Status Area */}
-      <div className="hidden md:block pt-6 border-t border-slate-100">
+      <div className="hidden md:flex flex-col gap-3 pt-6 border-t border-slate-100">
         <div className="bg-indigo-50 rounded-2xl p-4 border border-indigo-100">
           <div className="flex items-center gap-2 mb-1.5">
             <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></span>
@@ -118,7 +113,35 @@ export default function Sidebar({ activeTab, setActiveTab, agentCount, unresolve
             14,203 Ajan aktif ve çevrimiçi durumda. Sistem tam tıkırında.
           </p>
         </div>
+
+        {/* Admin Modu Kontrolü */}
+        {isAdmin ? (
+          <div className="bg-emerald-50 rounded-2xl p-3 border border-emerald-200 flex items-center justify-between shadow-xs">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <div className="text-[10px] font-black text-emerald-950 uppercase tracking-wider">
+                YÖNETİCİ AKTİF
+              </div>
+            </div>
+            <button
+              onClick={onLogoutAdmin}
+              className="p-1 rounded-lg hover:bg-emerald-100 text-emerald-700 transition-colors"
+              title="Yönetici Çıkışı"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={onOpenAdminLogin}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-slate-300 hover:border-slate-400 text-slate-500 hover:text-slate-800 text-[11px] font-black transition-all cursor-pointer"
+          >
+            <Lock className="w-3.5 h-3.5" />
+            <span>Yönetici Girişi</span>
+          </button>
+        )}
       </div>
+
     </aside>
   );
 }

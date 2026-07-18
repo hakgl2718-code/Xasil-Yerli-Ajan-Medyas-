@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Heart, MessageCircle, Send, Sparkles, MessageSquareShare, Trash2, Copy, Check, Image as ImageIcon, Volume2, VolumeX, MessageSquare } from "lucide-react";
 import { Agent, Post, Comment, LogEntry, Hub } from "../types";
 import { INITIAL_HUBS } from "../data";
+import { addPost, deletePost, addComment } from "../lib/dbService";
 
 const getPostImageUrl = (agentId: string | null, imagePrompt?: string): string => {
   if (!agentId) return "";
@@ -51,6 +52,8 @@ interface FeedProps {
   onAddLog: (log: Omit<LogEntry, "id" | "timestamp">) => void;
   onNavigateToDM: (agentId: string) => void;
   systemHour: number;
+  onViewProfile: (agentId: string) => void;
+  isAdmin: boolean;
 }
 
 export default function Feed({
@@ -64,6 +67,8 @@ export default function Feed({
   onAddLog,
   onNavigateToDM,
   systemHour,
+  onViewProfile,
+  isAdmin,
 }: FeedProps) {
   const [newPostContent, setNewPostContent] = useState("");
   const [postAsAgentId, setPostAsAgentId] = useState<string>("user");
@@ -170,19 +175,16 @@ export default function Feed({
 
   // Likes trigger
   const handleLike = (postId: string) => {
-    setPosts((prev) =>
-      prev.map((p) => {
-        if (p.id === postId) {
-          const isLiked = !p.isLikedByMe;
-          return {
-            ...p,
-            likes: isLiked ? p.likes + 1 : p.likes - 1,
-            isLikedByMe: isLiked,
-          };
-        }
-        return p;
-      })
-    );
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+
+    const isLiked = !post.isLikedByMe;
+    const updatedPost: Post = {
+      ...post,
+      likes: isLiked ? post.likes + 1 : post.likes - 1,
+      isLikedByMe: isLiked,
+    };
+    addPost(updatedPost);
   };
 
   // Submit User Post
@@ -204,7 +206,7 @@ export default function Feed({
       hubId: selectedHubId || undefined,
     };
 
-    setPosts((prev) => [newPost, ...prev]);
+    addPost(newPost);
     setNewPostContent("");
 
     // Check if any agent is mentioned in the new post
@@ -274,7 +276,7 @@ export default function Feed({
           hubId: selectedHubId || undefined,
         };
 
-        setPosts((prev) => [newPost, ...prev]);
+        addPost(newPost);
         setPostTopic("");
         setPostAsAgentId("user");
 
@@ -314,10 +316,11 @@ export default function Feed({
       createdAt: new Date().toISOString(),
     };
 
-    setComments((prev) => [...prev, userComment]);
-    setPosts((prev) =>
-      prev.map((p) => (p.id === postId ? { ...p, commentsCount: p.commentsCount + 1 } : p))
-    );
+    addComment(userComment);
+    const post = posts.find((p) => p.id === postId);
+    if (post) {
+      addPost({ ...post, commentsCount: post.commentsCount + 1 });
+    }
     setCommentInputs((prev) => ({ ...prev, [postId]: "" }));
 
     // Check if any agent is mentioned in the comment text
@@ -341,8 +344,6 @@ export default function Feed({
         break;
       }
     }
-
-    const post = posts.find((p) => p.id === postId);
 
     if (targetAgentId) {
       // Specific agent was mentioned/tagged, let them respond
@@ -399,10 +400,11 @@ export default function Feed({
           createdAt: new Date().toISOString(),
         };
 
-        setComments((prev) => [...prev, agentComment]);
-        setPosts((prev) =>
-          prev.map((p) => (p.id === postId ? { ...p, commentsCount: p.commentsCount + 1 } : p))
-        );
+        addComment(agentComment);
+        const post = posts.find((p) => p.id === postId);
+        if (post) {
+          addPost({ ...post, commentsCount: post.commentsCount + 1 });
+        }
 
         onAddLog({
           type: "reply_generation",
@@ -463,10 +465,11 @@ export default function Feed({
           createdAt: new Date().toISOString(),
         };
 
-        setComments((prev) => [...prev, agentComment]);
-        setPosts((prev) =>
-          prev.map((p) => (p.id === postId ? { ...p, commentsCount: p.commentsCount + 1 } : p))
-        );
+        addComment(agentComment);
+        const post = posts.find((p) => p.id === postId);
+        if (post) {
+          addPost({ ...post, commentsCount: post.commentsCount + 1 });
+        }
 
         onAddLog({
           type: "reply_generation",
@@ -527,8 +530,7 @@ export default function Feed({
   };
 
   const handleDeletePost = (postId: string) => {
-    setPosts((prev) => prev.filter((p) => p.id !== postId));
-    setComments((prev) => prev.filter((c) => c.postId !== postId));
+    deletePost(postId);
   };
 
   // Helper for agent badge color classes (Vibrant Light Palette)
@@ -765,12 +767,24 @@ export default function Feed({
                 {/* Post Header */}
                 <div className="p-4 md:p-6 flex items-start justify-between gap-3">
                   <div className="flex gap-3 items-center">
-                    <div className="w-12 h-12 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-2xl select-none shadow-xs">
+                    <div
+                      onClick={() => post.agentId && onViewProfile(post.agentId)}
+                      className={`w-12 h-12 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-2xl select-none shadow-xs ${
+                        post.agentId ? "cursor-pointer hover:scale-105 hover:border-slate-300 transition-all" : ""
+                      }`}
+                      title={post.agentId ? "Ajan Profilini Gör" : undefined}
+                    >
                       {post.authorAvatar}
                     </div>
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-sans font-black text-sm text-slate-900">
+                        <span
+                          onClick={() => post.agentId && onViewProfile(post.agentId)}
+                          className={`font-sans font-black text-sm text-slate-900 ${
+                            post.agentId ? "cursor-pointer hover:underline hover:text-indigo-600 transition-colors" : ""
+                          }`}
+                          title={post.agentId ? "Ajan Profilini Gör" : undefined}
+                        >
                           {post.authorName}
                         </span>
                         {isAgent && postAgent && (
@@ -791,12 +805,15 @@ export default function Feed({
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => handleDeletePost(post.id)}
-                    className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => handleDeletePost(post.id)}
+                      className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                      title="Gönderiyi Sil (Yönetici Yetkisi)"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
 
                 {/* Post Body */}
@@ -932,12 +949,24 @@ export default function Feed({
                                     : "bg-slate-100/50 border-slate-200/50"
                                 }`}
                               >
-                                <div className="w-9 h-9 rounded-full bg-slate-200/80 border border-slate-300/50 flex items-center justify-center text-lg select-none shrink-0">
+                                <div
+                                  onClick={() => comment.agentId && onViewProfile(comment.agentId)}
+                                  className={`w-9 h-9 rounded-full bg-slate-200/80 border border-slate-300/50 flex items-center justify-center text-lg select-none shrink-0 ${
+                                    comment.agentId ? "cursor-pointer hover:scale-105 hover:border-slate-300 transition-all" : ""
+                                  }`}
+                                  title={comment.agentId ? "Ajan Profilini Gör" : undefined}
+                                >
                                   {comment.authorAvatar}
                                 </div>
                                 <div className="flex-1 space-y-1">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-black text-xs text-slate-900">
+                                    <span
+                                      onClick={() => comment.agentId && onViewProfile(comment.agentId)}
+                                      className={`font-black text-xs text-slate-900 ${
+                                        comment.agentId ? "cursor-pointer hover:underline hover:text-indigo-600 transition-colors" : ""
+                                      }`}
+                                      title={comment.agentId ? "Ajan Profilini Gör" : undefined}
+                                    >
                                       {comment.authorName}
                                     </span>
                                     {isCommentAgent && commentAgent && (

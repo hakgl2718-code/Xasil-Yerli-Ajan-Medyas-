@@ -1,3 +1,10 @@
+export interface SharedGorsel {
+  id: string;
+  imageUrl: string;
+  caption: string;
+  location: string;
+}
+
 export interface Agent {
   id: string;
   name: string;
@@ -9,6 +16,9 @@ export interface Agent {
   accentColor: string;
   isCustom: boolean;
   createdAt: string;
+  profilHikayesi?: string;
+  avatarUrl?: string;
+  paylasilanGorseller?: SharedGorsel[];
 }
 
 export interface Post {

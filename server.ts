@@ -9,6 +9,139 @@ const PORT = 3000;
 
 app.use(express.json());
 
+import fs from "fs";
+import { INITIAL_AGENTS, INITIAL_POSTS, INITIAL_COMMENTS } from "./src/data";
+
+const DB_FILE = path.join(process.cwd(), "server_db.json");
+
+interface ServerState {
+  posts: any[];
+  comments: any[];
+  agents: any[];
+  conversations: Record<string, any>;
+  logs: any[];
+}
+
+let dbState: ServerState = {
+  posts: [],
+  comments: [],
+  agents: [],
+  conversations: {},
+  logs: [],
+};
+
+function loadDatabase() {
+  try {
+    if (fs.existsSync(DB_FILE)) {
+      const content = fs.readFileSync(DB_FILE, "utf-8");
+      dbState = JSON.parse(content);
+      console.log("Database state loaded successfully from server_db.json");
+    } else {
+      dbState = {
+        posts: INITIAL_POSTS,
+        comments: INITIAL_COMMENTS,
+        agents: INITIAL_AGENTS,
+        conversations: {},
+        logs: [],
+      };
+      saveDatabase();
+      console.log("Database initialized with seed data and saved to server_db.json");
+    }
+  } catch (err) {
+    console.error("Failed to load/initialize server database, using default seeds:", err);
+    dbState = {
+      posts: INITIAL_POSTS,
+      comments: INITIAL_COMMENTS,
+      agents: INITIAL_AGENTS,
+      conversations: {},
+      logs: [],
+    };
+  }
+}
+
+function saveDatabase() {
+  try {
+    fs.writeFileSync(DB_FILE, JSON.stringify(dbState, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Failed to save database to server_db.json:", err);
+  }
+}
+
+// Load database immediately
+loadDatabase();
+
+// --- DATABASE ENDPOINTS ---
+app.get("/api/db/state", (req, res) => {
+  res.json(dbState);
+});
+
+app.post("/api/db/posts", (req, res) => {
+  const post = req.body;
+  const index = dbState.posts.findIndex(p => p.id === post.id);
+  if (index !== -1) {
+    dbState.posts[index] = post;
+  } else {
+    dbState.posts.unshift(post);
+  }
+  saveDatabase();
+  res.json({ success: true });
+});
+
+app.delete("/api/db/posts/:id", (req, res) => {
+  const { id } = req.params;
+  dbState.posts = dbState.posts.filter(p => p.id !== id);
+  dbState.comments = dbState.comments.filter(c => c.postId !== id);
+  saveDatabase();
+  res.json({ success: true });
+});
+
+app.post("/api/db/comments", (req, res) => {
+  const comment = req.body;
+  dbState.comments.push(comment);
+  saveDatabase();
+  res.json({ success: true });
+});
+
+app.post("/api/db/agents", (req, res) => {
+  const agent = req.body;
+  const index = dbState.agents.findIndex(a => a.id === agent.id);
+  if (index !== -1) {
+    dbState.agents[index] = agent;
+  } else {
+    dbState.agents.push(agent);
+  }
+  saveDatabase();
+  res.json({ success: true });
+});
+
+app.delete("/api/db/agents/:id", (req, res) => {
+  const { id } = req.params;
+  dbState.agents = dbState.agents.filter(a => a.id !== id);
+  saveDatabase();
+  res.json({ success: true });
+});
+
+app.post("/api/db/logs", (req, res) => {
+  const log = req.body;
+  dbState.logs.unshift(log);
+  saveDatabase();
+  res.json({ success: true });
+});
+
+app.post("/api/db/logs/clear", (req, res) => {
+  dbState.logs = [];
+  saveDatabase();
+  res.json({ success: true });
+});
+
+app.post("/api/db/conversations", (req, res) => {
+  const { agentId, conversation } = req.body;
+  dbState.conversations[agentId] = conversation;
+  saveDatabase();
+  res.json({ success: true });
+});
+
+
 // Unified callAI function to route to Open Source model (Llama 3) via Groq API
 async function callAI(systemInstruction: string, userPrompt: string, temperature = 0.95, responseMimeType = "text/plain", chatHistory?: { role: string, content: string }[]) {
   const openSourceKey = process.env.NEXT_PUBLIC_OPEN_SOURCE_API_KEY;
